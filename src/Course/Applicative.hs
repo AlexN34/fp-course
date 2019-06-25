@@ -30,6 +30,7 @@ import qualified Prelude as P(fmap, return, (>>=))
 class Functor f => Applicative f where
   pure ::
     a -> f a
+  -- spaceship, apply, angle bum
   (<*>) ::
     f (a -> b)
     -> f a
@@ -66,14 +67,22 @@ instance Applicative List where
   pure ::
     a
     -> List a
-  pure =
-    error "todo: Course.Applicative pure#instance List"
+  pure = \a -> a :. Nil
   (<*>) ::
     List (a -> b)
     -> List a
     -> List b
-  (<*>) =
-    error "todo: Course.Apply (<*>)#instance List"
+  (<*>) Nil _ = Nil
+  (<*>) (f :. fs) y = map f y ++ ((<*>) fs y)
+  -- (<*>) fab la = flatMap _afb la
+    -- error "todo: Course.Apply (<*>)#instance List"
+-- f::a -> b
+-- fs :: List (a ->b)
+-- y :: List a
+-- map f y :: List b
+-- fs <*> y :: List b
+-- map f y ++ (fs <*> y) :: List b
+-- ? :: List b
 
 -- | Insert into an Optional.
 --
@@ -91,14 +100,21 @@ instance Applicative Optional where
   pure ::
     a
     -> Optional a
-  pure =
-    error "todo: Course.Applicative pure#instance Optional"
+  pure = Full
+    -- error "todo: Course.Applicative pure#instance Optional"
   (<*>) ::
     Optional (a -> b)
     -> Optional a
     -> Optional b
-  (<*>) =
-    error "todo: Course.Apply (<*>)#instance Optional"
+  (<*>) _ Empty = Empty
+  (<*>) Empty _ = Empty
+  (<*>) (Full f) (Full a) = Full (f a)
+    -- error "todo: Course.Apply (<*>)#instance Optional"
+-- f :: a->b
+-- a::a
+-- _::b -> Optional b
+-- ? :: Optional b
+
 
 -- | Insert into a constant function.
 --
@@ -120,18 +136,24 @@ instance Applicative Optional where
 -- prop> \x y -> pure x y == x
 instance Applicative ((->) t) where
   pure ::
-    a
-    -> ((->) t a)
-  pure =
-    error "todo: Course.Applicative pure#((->) t)"
+    a ->  t -> a -- const?
+  pure = const
+    -- error "todo: Course.Applicative pure#((->) t)"
   (<*>) ::
-    ((->) t (a -> b))
-    -> ((->) t a)
-    -> ((->) t b)
-  (<*>) =
-    error "todo: Course.Apply (<*>)#instance ((->) t)"
-
-
+     (t -> a -> b)
+    -> ( t -> a)
+    ->  t -> b
+  -- (<*>) ::
+  --   ((->) t (a -> b))
+  --   -> ((->) t a)
+  --   -> ((->) t b)
+  (<*>) = \t2a2b -> \t2a -> \x -> t2a2b x (t2a x)
+    -- error "todo: Course.Apply (<*>)#instance ((->) t)"
+-- use goalposts, jigsaw puzzle it
+-- t2a2b :: t -> a -> b
+-- t2a :: t -> a
+-- x :: t
+-- ??? :: b
 -- | Apply a binary function in the environment.
 --
 -- >>> lift2 (+) (ExactlyOne 7) (ExactlyOne 8)
@@ -153,12 +175,21 @@ instance Applicative ((->) t) where
 -- 18
 lift2 ::
   Applicative f =>
-  (a -> b -> c)
-  -> f a
-  -> f b
-  -> f c
-lift2 =
-  error "todo: Course.Applicative#lift2"
+  (a -> b -> c) -> (f a -> f b -> f c)
+lift2 k fa fb =
+  k <$> fa <*> fb
+  -- error "todo: Course.Applicative#lift2"
+-- k <$> fa :: f
+-- k :: a -> b -> c
+-- fa :: f a
+-- <$> k fa :: f (b -> c)
+-- why ^? k <$> == (a - > b -> c) -...
+-- fb :: f b
+
+-- <$> k fa <*> fb :: f c
+-- ? :: f c
+
+-- lift 2 ~= lift 1 (map) & apply
 
 -- | Apply a ternary function in the environment.
 -- /can be written using `lift2` and `(<*>)`./
@@ -190,9 +221,13 @@ lift3 ::
   -> f b
   -> f c
   -> f d
-lift3 =
-  error "todo: Course.Applicative#lift3"
-
+lift3 k fa fb fc =
+  lift2 k fa fb <*> fc
+  --lift2 k fa fb :: f (c -> d)
+-- lift 2 k fa fb <*> fc :: f d
+  -- error "todo: Course.Applicative#lift3"
+-- lift2 (+) - do nullchecks seq, then perform + operation
+-- liftn - lift n variables
 -- | Apply a quaternary function in the environment.
 -- /can be written using `lift3` and `(<*>)`./
 --
@@ -224,16 +259,16 @@ lift4 ::
   -> f c
   -> f d
   -> f e
-lift4 =
-  error "todo: Course.Applicative#lift4"
+lift4 k fa fb fc fd =
+  lift3 k fa fb fc <*> fd
+  -- error "todo: Course.Applicative#lift4"
 
 -- | Apply a nullary function in the environment.
 lift0 ::
   Applicative f =>
   a
   -> f a
-lift0 =
-  error "todo: Course.Applicative#lift0"
+lift0 = pure
 
 -- | Apply a unary function in the environment.
 -- /can be written using `lift0` and `(<*>)`./
@@ -251,8 +286,9 @@ lift1 ::
   (a -> b)
   -> f a
   -> f b
-lift1 =
-  error "todo: Course.Applicative#lift1"
+-- lift1 ab fa = pure ab <*> fa
+-- lift1 ab fa = lift0 ab <*> fa
+lift1 = (<$>)
 
 -- | Apply, discarding the value of the first argument.
 -- Pronounced, right apply.
@@ -277,8 +313,11 @@ lift1 =
   f a
   -> f b
   -> f b
-(*>) =
-  error "todo: Course.Applicative#(*>)"
+(*>) fa fb = lift2 (\_ b -> b) fa fb
+-- hi = \_ b ->
+-- hi = flip const
+-- hi = const id
+  -- error "todo: Course.Applicative#(*>)"
 
 -- | Apply, discarding the value of the second argument.
 -- Pronounced, left apply.
@@ -303,8 +342,8 @@ lift1 =
   f b
   -> f a
   -> f b
-(<*) =
-  error "todo: Course.Applicative#(<*)"
+(<*) = lift2 const
+-- error "todo: Course.Applicative#(<*)"
 
 -- | Sequences a list of structures to a structure of list.
 --
@@ -326,8 +365,18 @@ sequence ::
   Applicative f =>
   List (f a)
   -> f (List a)
-sequence =
-  error "todo: Course.Applicative#sequence"
+sequence = foldRight (lift2 (:.)) (pure Nil)
+-- sequence Nil = pure Nil
+-- sequence (h :. t) = lift2 (:.) h (sequence t)
+
+-- h:: f a
+-- t:: List (f a)
+-- sequence t::f (List a)
+-- ? :: f (List a)
+-- _todo :: f (List a)
+
+-- The Essence of the Iterator Pattern
+-- Gibbons
 
 -- | Replicate an effect a given number of times.
 --

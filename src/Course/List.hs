@@ -201,12 +201,12 @@ filter p (h:.t) =
   List a
   -> List a
   -> List a
--- (++) xs Nil = xs
--- (++) (h :. t) ys = h :. (t ++ ys)
+(++) xs Nil = xs
+(++) (h :. t) ys = h :. (t ++ ys)
 -- (++) = \x y -> foldRight (:.) y x
 -- (++) = \x y -> flip (foldRight (:.)) x y
 -- delete x, y => eta reduce.. TODO check what mean
-(++) = flip (foldRight (:.))
+-- (++) = flip (foldRight (:.))
 -- (++) (h :. Nil) ys = h :. ys
 -- (++) Nil ys = ys
 -- (++) xs (y :. ys) =

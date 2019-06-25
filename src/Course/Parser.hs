@@ -19,6 +19,7 @@ import Data.Char
 -- >>> :set -XOverloadedStrings
 -- >>> import Data.Char(isUpper)
 
+-- type aliases
 type Input = Chars
 
 data ParseResult a =

@@ -20,6 +20,8 @@ import qualified Prelude as P((=<<))
 --   `∀f g x. g =<< (f =<< x) ≅ ((g =<<) . f) =<< x`
 class Applicative f => Monad f where
   -- Pronounced, bind.
+  -- fmap is a->b, apply also similar
+  -- cobind is (fa -> b)
   (=<<) ::
     (a -> f b)
     -> f a
@@ -48,8 +50,19 @@ instance Monad List where
     (a -> List b)
     -> List a
     -> List b
-  (=<<) =
-    error "todo: Course.Monad (=<<)#instance List"
+  -- (=<<) = flatMap
+  (=<<) _ Nil = Nil
+  (=<<) afb (h :. t) = afb h ++ (=<<) afb t
+    -- error "todo: Course.Monad (=<<)#instance List"
+  -- (=<<) = ((++) . f) Nil -- how does this work?
+
+-- afb :: a -> List b
+-- fa :: List a
+-- (h :. t) :: List a
+-- h :: a
+-- t :: List a
+-- _todo :: List b
+
 
 -- | Binds a function on an Optional.
 --
@@ -60,8 +73,7 @@ instance Monad Optional where
     (a -> Optional b)
     -> Optional a
     -> Optional b
-  (=<<) =
-    error "todo: Course.Monad (=<<)#instance Optional"
+  (=<<) = bindOptional
 
 -- | Binds a function on the reader ((->) t).
 --
@@ -69,12 +81,15 @@ instance Monad Optional where
 -- 119
 instance Monad ((->) t) where
   (=<<) ::
-    (a -> ((->) t b))
-    -> ((->) t a)
-    -> ((->) t b)
-  (=<<) =
-    error "todo: Course.Monad (=<<)#instance ((->) t)"
-
+    (a ->  t -> b)
+    -> (t -> a)
+    -> t -> b
+  (=<<) f ta t = f (ta t) t
+    -- error "todo: Course.Monad (=<<)#instance ((->) t)"
+-- f :: a -> t -> b
+-- ta :: t -> a
+-- _todo :: t -> b
+--
 -- | Witness that all things with (=<<) and (<$>) also have (<*>).
 --
 -- >>> ExactlyOne (+10) <**> ExactlyOne 8
@@ -112,7 +127,19 @@ instance Monad ((->) t) where
   -> f a
   -> f b
 (<**>) =
-  error "todo: Course.Monad#(<**>)"
+  -- \k a ->
+  --   k >>= (\a2b ->
+  --   (a >>= \aa ->
+  --   pure (a2b aa)))
+  -- f x -> (x -> f y) -> f y -- bind type
+  -- f (a -> b) -> ((a-> b) -> f b) f b
+  -- f a -> (a-> f b) f b
+  \f_a2b f_a ->
+    f_a2b >>= \a2b ->
+    f_a >>= \a ->
+    pure (a2b a)
+
+
 
 infixl 4 <**>
 
@@ -133,8 +160,23 @@ join ::
   Monad f =>
   f (f a)
   -> f a
-join =
-  error "todo: Course.Monad#join"
+join f_f_a =
+  (>>=) f_f_a id
+  -- error "todo: Course.Monad#join"
+
+-- x >>= b :: f x -> (x -> f b) -> f b
+-- f (f a) >>= :: (f a -> f b) -> f b
+-- (f a) >>= b :: f (f a) -> (f a -> f b) -> f b
+-- feed f a into operator?
+-- (f a) >>= b :: f (f a) -> (f a -> f a) -> f a
+
+
+-- (>>=) x b :: f x -> (x -> f b) -> f b
+-- x :: (f x) == f (f a)
+-- (>>=) f (f a) b :: f (f a) -> (f a -> f b) -> f b
+-- b :: (f a -> f b) == (f a -> f a) (to get -> f a)
+--
+-- (>>=) (f a) a : f (f a) -> (f a -> f a) -> f a
 
 -- | Implement a flipped version of @(=<<)@, however, use only
 -- @join@ and @(<$>)@.
@@ -147,9 +189,9 @@ join =
   f a
   -> (a -> f b)
   -> f b
-(>>=) =
-  error "todo: Course.Monad#(>>=)"
+(>>=) = flip (=<<)
 
+-- type signatures, >>= has a-> f b -> fa -> fb
 infixl 1 >>=
 
 -- | Implement composition within the @Monad@ environment.
@@ -164,7 +206,9 @@ infixl 1 >>=
   -> a
   -> f c
 (<=<) =
-  error "todo: Course.Monad#(<=<)"
+  -- f x -> (x -> f y) -> f y
+  \b2f_c -> \a2fb -> \a -> a2fb a >>= b2f_c
+  -- error "todo: Course.Monad#(<=<)"
 
 infixr 1 <=<
 
